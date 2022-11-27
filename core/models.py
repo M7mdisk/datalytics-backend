@@ -1,3 +1,4 @@
+from django.utils.translation import gettext_lazy as _
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import FileExtensionValidator
@@ -7,7 +8,10 @@ from django.dispatch import receiver
 
 
 class User(AbstractUser):
-    pass
+    username = None
+    email = models.EmailField(_("email address"), unique=True)
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["password"]
 
 
 class Dataset(models.Model):
@@ -15,9 +19,16 @@ class Dataset(models.Model):
     name = models.CharField(max_length=30)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     file = models.FileField(
-        upload_to="datasets/", validators=[FileExtensionValidator(allowed_extensions=["csv", "xlsx", "xls", "xlsm", "xlsb"])])
+        upload_to="datasets/",
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=["csv", "xlsx", "xls", "xlsm", "xlsb"]
+            )
+        ],
+    )
     cleaned_file = models.FileField(
-        upload_to="datasets/cleaned/", null=True, editable=False)
+        upload_to="datasets/cleaned/", null=True, editable=False
+    )
     DATASET_STATUS = [("C", "Cleaned"), ("U", "Unprocessed")]
     status = models.CharField(max_length=1, default="U", editable=False)
 
@@ -48,10 +59,10 @@ def fill_columns(sender, instance, created, **kwargs):
 
 class Column(models.Model):
     dataset = models.ForeignKey(
-        Dataset, on_delete=models.CASCADE, related_name="columns")
+        Dataset, on_delete=models.CASCADE, related_name="columns"
+    )
     name = models.CharField(max_length=1000)
-    applied_techniques = models.ManyToManyField(
-        'Technique', editable=False)
+    applied_techniques = models.ManyToManyField("Technique", editable=False)
 
     def __str__(self) -> str:
         return f"{self.dataset}: {self.name}"
