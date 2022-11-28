@@ -5,18 +5,20 @@ from django.core.validators import FileExtensionValidator
 import pandas as pd
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from .managers import UserManager
 
 
 class User(AbstractUser):
+    # Change email to be requireed instead of username
     username = None
     email = models.EmailField(_("email address"), unique=True)
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["password"]
+    REQUIRED_FIELDS = []
+    objects = UserManager()
 
 
 class Dataset(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=30)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     file = models.FileField(
         upload_to="datasets/",
@@ -43,18 +45,12 @@ class Dataset(models.Model):
             raise Exception("File extention not valid")
         return df
 
+    @property
+    def file_name(self):
+        return self.file.name.split("/")[-1]
+
     def __str__(self) -> str:
         return self.file.name
-
-
-@receiver(post_save, sender=Dataset, dispatch_uid="fill_dataset_columns")
-def fill_columns(sender, instance, created, **kwargs):
-    if created:
-        df = instance.df
-        for col in df.columns:
-            column = Column(dataset=instance, name=col)
-            column.save()
-        print(df.describe())
 
 
 class Column(models.Model):

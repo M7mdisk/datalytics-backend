@@ -3,8 +3,12 @@ from django.contrib.auth import get_user_model
 from rest_framework.generics import CreateAPIView
 from rest_framework import viewsets
 from rest_framework import permissions
-from .serializers import UserSerializer
-from rest_framework.permissions import AllowAny
+from .serializers import (
+    UserSerializer,
+    DatasetSerializer,
+    CreateDatasetSerializer,
+)
+from .models import Dataset
 
 
 class RegisterView(CreateAPIView):
@@ -15,11 +19,21 @@ class RegisterView(CreateAPIView):
     serializer_class = UserSerializer
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class DatasetViewSet(viewsets.ModelViewSet):
     """
-    API endpoint that allows users to be viewed or edited.
+    API endpoint that allows datasets to be viewed or edited.
     """
 
-    queryset = get_user_model().objects.all().order_by("-date_joined")
-    serializer_class = UserSerializer
+    serializer_class = DatasetSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Dataset.objects.filter(owner=self.request.user)
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return CreateDatasetSerializer
+        return DatasetSerializer
+
+    def perform_create(self, serializer):
+        return serializer.save(owner=self.request.user)
