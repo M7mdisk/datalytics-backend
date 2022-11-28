@@ -1,5 +1,3 @@
-from django.shortcuts import render
-from django.contrib.auth import get_user_model
 from rest_framework.generics import CreateAPIView
 from rest_framework import viewsets
 from rest_framework import permissions
@@ -9,6 +7,10 @@ from .serializers import (
     CreateDatasetSerializer,
 )
 from .models import Dataset
+from django.contrib.auth import authenticate
+from rest_framework.authtoken.models import Token
+from rest_framework.response import Response
+from rest_framework.decorators import api_view
 
 
 class RegisterView(CreateAPIView):
@@ -17,6 +19,18 @@ class RegisterView(CreateAPIView):
     """
 
     serializer_class = UserSerializer
+
+
+@api_view(["POST"])
+def login(request):
+    email = request.data.get("email")
+    password = request.data.get("password")
+    if email and password:
+        user = authenticate(email=email, password=password)
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({"token": token.key})
+
+    return Response(None, 401)
 
 
 class DatasetViewSet(viewsets.ModelViewSet):
