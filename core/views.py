@@ -6,7 +6,7 @@ from .serializers import (
     DatasetSerializer,
     CreateDatasetSerializer,
 )
-from .models import Dataset
+from .models import Dataset, Column
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -25,11 +25,12 @@ class RegisterView(CreateAPIView):
 def login(request):
     email = request.data.get("email")
     password = request.data.get("password")
+    print(email, password)
     if email and password:
         user = authenticate(email=email, password=password)
-        token, created = Token.objects.get_or_create(user=user)
-        return Response({"token": token.key})
-
+        if user:
+            token, _ = Token.objects.get_or_create(user=user)
+            return Response({"token": token.key})
     return Response(None, 401)
 
 
@@ -50,4 +51,7 @@ class DatasetViewSet(viewsets.ModelViewSet):
         return DatasetSerializer
 
     def perform_create(self, serializer):
-        return serializer.save(owner=self.request.user)
+        s = serializer.save(owner=self.request.user)
+        for col in s.df.columns:
+            Column(name=col, dataset=s).save()
+        return s

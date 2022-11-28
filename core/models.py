@@ -3,8 +3,6 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import FileExtensionValidator
 import pandas as pd
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from .managers import UserManager
 
 
@@ -43,7 +41,7 @@ class Dataset(models.Model):
             df = pd.read_excel(self.file)
         else:
             raise Exception("File extention not valid")
-        return df
+        return df.copy(deep=True)
 
     @property
     def file_name(self):
@@ -66,3 +64,4 @@ class Column(models.Model):
 
 class Technique(models.Model):
     name = models.CharField(max_length=50)
+    # TODO: Add technique description
