@@ -5,6 +5,7 @@ from .serializers import (
     UserSerializer,
     DatasetSerializer,
     CreateDatasetSerializer,
+    DetailsDatasetSerializer,
 )
 from .models import Dataset, Column
 from django.contrib.auth import authenticate
@@ -46,8 +47,10 @@ class DatasetViewSet(viewsets.ModelViewSet):
         return Dataset.objects.filter(owner=self.request.user)
 
     def get_serializer_class(self):
-        if self.request.method == "POST":
+        if self.action == "create":
             return CreateDatasetSerializer
+        elif self.action == "retrieve":
+            return DetailsDatasetSerializer
         return DatasetSerializer
 
     def perform_create(self, serializer):

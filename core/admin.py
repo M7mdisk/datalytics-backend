@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Dataset, Column
+from .models import User, Dataset, Column, Technique
 from .managers import UserManager
 from django.utils.html import format_html
 
@@ -21,6 +21,3 @@ class DatasetInstanceAdmin(admin.ModelAdmin):
 
     def test(self, instance):
         return format_html(instance.df.to_html())
-
-
-# admin.site.register(Column)
