@@ -29,8 +29,10 @@ class Dataset(models.Model):
     uncleaned_file = models.FileField(
         upload_to="datasets/uncleaned/", null=True, editable=False
     )
-    DATASET_STATUS = [("C", "Cleaned"), ("U", "Unprocessed")]
-    status = models.CharField(max_length=1, default="U", editable=False)
+    CLEANED = "C"
+    UNCLEANED = "U"
+    DATASET_STATUS = [(CLEANED, "Cleaned"), (UNCLEANED, "Unprocessed")]
+    status = models.CharField(max_length=1, default=UNCLEANED, editable=False)
     description = models.CharField(max_length=150, blank=True)
 
     @property
