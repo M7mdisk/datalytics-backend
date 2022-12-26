@@ -26,11 +26,12 @@ class Dataset(models.Model):
             )
         ],
     )
-    cleaned_file = models.FileField(
-        upload_to="datasets/cleaned/", null=True, editable=False
+    uncleaned_file = models.FileField(
+        upload_to="datasets/uncleaned/", null=True, editable=False
     )
     DATASET_STATUS = [("C", "Cleaned"), ("U", "Unprocessed")]
     status = models.CharField(max_length=1, default="U", editable=False)
+    description = models.CharField(max_length=150, blank=True)
 
     @property
     def df(self):
@@ -49,6 +50,9 @@ class Dataset(models.Model):
 
     def __str__(self) -> str:
         return self.file.name
+
+    class Meta:
+        ordering = ("-uploaded_at",)
 
 
 class Column(models.Model):

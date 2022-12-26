@@ -39,9 +39,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class CreateDatasetSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Dataset
-        fields = ["file"]
+        fields = ["id", "file", "description"]
 
 
 class DatasetSerializer(serializers.ModelSerializer):
@@ -50,7 +52,15 @@ class DatasetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Dataset
-        fields = ["id", "file_name", "uploaded_at", "status", "size", "columns"]
+        fields = [
+            "id",
+            "file_name",
+            "description",
+            "uploaded_at",
+            "status",
+            "size",
+            "columns",
+        ]
 
 
 class ColumnSerializer(serializers.ModelSerializer):

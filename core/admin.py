@@ -6,7 +6,7 @@ from django.utils.html import format_html
 
 
 @admin.register(User)
-class UserAdmni(admin.ModelAdmin):
+class UserAdmin(admin.ModelAdmin):
     pass
 
 
@@ -16,7 +16,20 @@ class DatasetInstanceAdmin(admin.ModelAdmin):
     list_display_links = ("__str__",)
     readonly_fields = ["id", "uploaded_at", "status", "test"]
     fieldsets = (
-        (None, {"fields": ("id", "owner", "file", "test", "status", "uploaded_at")}),
+        (
+            None,
+            {
+                "fields": (
+                    "id",
+                    "owner",
+                    "description",
+                    "file",
+                    "test",
+                    "status",
+                    "uploaded_at",
+                )
+            },
+        ),
     )
 
     def test(self, instance):
