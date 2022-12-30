@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from .services.clean import AutoClean
+from django.contrib.auth import get_user_model
 
 
 class RegisterView(CreateAPIView):
@@ -23,6 +24,16 @@ class RegisterView(CreateAPIView):
     """
 
     serializer_class = UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        data = response.data
+        user = get_user_model().objects.get(id=data["id"])
+
+        token, _ = Token.objects.get_or_create(user=user)
+
+        response.data["token"] = token.key
+        return response
 
 
 @api_view(["POST"])
