@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "core",
+    "huey.contrib.djhuey",
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
@@ -145,4 +146,10 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
     ]
+}
+
+HUEY = {
+    "huey_class": "huey.SqliteHuey",  # Huey implementation to use.
+    "immediate": False,  # If DEBUG=True, run synchronously.
+    # "immediate": DEBUG,  # If DEBUG=True, run synchronously.
 }
