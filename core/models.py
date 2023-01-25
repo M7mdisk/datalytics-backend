@@ -2,8 +2,10 @@ from django.utils.translation import gettext_lazy as _
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import FileExtensionValidator
+from django.core.exceptions import ValidationError
 import pandas as pd
 from .managers import UserManager
+from django.utils.functional import cached_property
 
 
 class User(AbstractUser):
@@ -35,7 +37,9 @@ class Dataset(models.Model):
     status = models.CharField(max_length=1, default=UNCLEANED, editable=False)
     description = models.CharField(max_length=150, blank=True)
 
-    @property
+    # TODO: This is actually a horrible idea, save in new blob field on model instead.
+    # Actually maybe not, Two Scoops of django says binary objects are extremely costly on a database
+    @cached_property
     def df(self):
         extension = self.file.name.split(".")[-1]
         if extension == "csv":
@@ -71,3 +75,39 @@ class Column(models.Model):
 class Technique(models.Model):
     name = models.CharField(max_length=50)
     # TODO: Add technique description
+
+
+class MLModel(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=50)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    BUILDING = "B"
+    DONE = "D"
+    MODEL_STATUS = [(BUILDING, "Building"), (DONE, "Done")]
+    status = models.CharField(
+        max_length=1, default=BUILDING, choices=MODEL_STATUS, editable=False
+    )
+
+    CLASSIFICATION = "C"
+    REGERSSION = "R"
+    MODEL_TYPE = [(CLASSIFICATION, "Classification"), (REGERSSION, "Regression")]
+    model_type = models.CharField(max_length=1, editable=False, choices=MODEL_TYPE)
+
+    dataset = models.ForeignKey(
+        Dataset, on_delete=models.CASCADE, related_name="models"
+    )
+    target = models.ForeignKey(
+        Column, on_delete=models.CASCADE, related_name="predictors"
+    )
+
+    features = models.ManyToManyField(Column)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.name} -> {self.target}"
+
+    class Meta:
+        verbose_name = "ML Model"

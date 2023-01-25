@@ -1,8 +1,29 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Dataset, Column, Technique
+from .models import User, Dataset, Column, Technique, MLModel
 from .managers import UserManager
 from django.utils.html import format_html
+
+
+@admin.register(MLModel)
+class MLModelInstanceAdmin(admin.ModelAdmin):
+    readonly_fields = [
+        "id",
+        "created_at",
+        "status",
+    ]
+    fields = (
+        "id",
+        "name",
+        "created_at",
+        "status",
+        "dataset",
+        "target",
+        "features",
+    )
+
+    def get_status(self, obj):
+        return obj.get_status_display()
 
 
 @admin.register(User)
@@ -14,7 +35,7 @@ class UserAdmin(admin.ModelAdmin):
 class DatasetInstanceAdmin(admin.ModelAdmin):
     list_display = ("id", "__str__")
     list_display_links = ("__str__",)
-    readonly_fields = ["id", "uploaded_at", "status", "test"]
+    readonly_fields = ["id", "uploaded_at", "status", "df"]
     fieldsets = (
         (
             None,
@@ -24,7 +45,7 @@ class DatasetInstanceAdmin(admin.ModelAdmin):
                     "owner",
                     "description",
                     "file",
-                    "test",
+                    "df",
                     "status",
                     "uploaded_at",
                 )
@@ -32,5 +53,11 @@ class DatasetInstanceAdmin(admin.ModelAdmin):
         ),
     )
 
-    def test(self, instance):
-        return format_html(instance.df.to_html())
+    def get_status(self, obj):
+        return obj.get_status_display()
+
+    @admin.display(description="Table")
+    def df(self, instance):
+        if instance.file:
+            return format_html(instance.df.head(10).to_html())
+        return ""
