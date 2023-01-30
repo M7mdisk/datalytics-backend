@@ -1,6 +1,5 @@
 from rest_framework.generics import CreateAPIView
 from rest_framework import serializers
-from django.http import HttpResponse
 from rest_framework import viewsets
 from rest_framework import permissions
 from .serializers import (
@@ -21,6 +20,8 @@ from .services.clean import AutoClean
 from django.contrib.auth import get_user_model
 import json
 from pandas.io.json import dumps
+import pandas as pd
+from django.core.files import File
 
 
 class RegisterView(CreateAPIView):
@@ -66,6 +67,11 @@ def clean_dataset(request, id):
         dumps(auto_clean.techniques, double_precision=0)
     )
     dataset.status = Dataset.CLEANED
+    cleaned_df: pd.DataFrame = auto_clean.output
+    file_name = "uploads/datasets/cleaned/" + dataset.file_name
+    f = open(file_name, "w+b")
+    cleaned_df.to_csv(f, index=False)
+    dataset.file.save(dataset.file_name, File(f), save=True)
     # TODO: Save cleaned dataset in dataset.file
     # TODO: Save applied techniques
     dataset.save()
@@ -96,7 +102,7 @@ class DatasetViewSet(viewsets.ModelViewSet):
         s: Dataset = serializer.save(
             owner=self.request.user, uncleaned_file=serializer.validated_data["file"]
         )
-        # I know its stupid to save then delete, but it has to be done like this so that df can be accessed
+
         if s.df.columns.duplicated().any():
             s.delete()
             raise serializers.ValidationError(
