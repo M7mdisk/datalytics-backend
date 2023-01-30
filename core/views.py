@@ -19,6 +19,8 @@ from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from .services.clean import AutoClean
 from django.contrib.auth import get_user_model
+import json
+from pandas.io.json import dumps
 
 
 class RegisterView(CreateAPIView):
@@ -56,14 +58,18 @@ def login(request):
 @permission_classes([permissions.IsAuthenticated])
 def clean_dataset(request, id):
     dataset = get_object_or_404(Dataset.objects.filter(owner=request.user), pk=id)
+    if dataset.status == Dataset.CLEANED:
+        return Response("Dataset already cleaned.", 400)
     df = dataset.df
-
-    out = AutoClean(df, mode="auto", encode_categ=False)
+    auto_clean = AutoClean(df, mode="auto", encode_categ=False)
+    dataset.applied_techniques = json.loads(
+        dumps(auto_clean.techniques, double_precision=0)
+    )
     dataset.status = Dataset.CLEANED
     # TODO: Save cleaned dataset in dataset.file
     # TODO: Save applied techniques
     dataset.save()
-    return HttpResponse(out.output.to_html())
+    return Response(DetailsDatasetSerializer(dataset).data)
 
 
 class DatasetViewSet(viewsets.ModelViewSet):

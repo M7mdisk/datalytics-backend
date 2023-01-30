@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Dataset, Column, Technique, MLModel
+from .models import User, Dataset, MLModel
 from .managers import UserManager
 from django.utils.html import format_html
 

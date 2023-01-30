@@ -36,6 +36,9 @@ class Dataset(models.Model):
     DATASET_STATUS = [(CLEANED, "Cleaned"), (UNCLEANED, "Unprocessed")]
     status = models.CharField(max_length=1, default=UNCLEANED, editable=False)
     description = models.CharField(max_length=150, blank=True)
+    applied_techniques = models.JSONField(
+        "applied_techniques", blank=True, null=True, editable=False
+    )
 
     # TODO: This is actually a horrible idea, save in new blob field on model instead.
     # Actually maybe not, Two Scoops of django says binary objects are extremely costly on a database
@@ -66,15 +69,9 @@ class Column(models.Model):
         Dataset, on_delete=models.CASCADE, related_name="columns"
     )
     name = models.CharField(max_length=1000)
-    applied_techniques = models.ManyToManyField("Technique", editable=False)
 
     def __str__(self) -> str:
         return f"{self.dataset}: {self.name}"
-
-
-class Technique(models.Model):
-    name = models.CharField(max_length=50)
-    # TODO: Add technique description
 
 
 class MLModel(models.Model):

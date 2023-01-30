@@ -69,6 +69,7 @@ class AutoClean:
         self.encode_categ = encode_categ
         self.extract_datetime = extract_datetime
         self.outlier_param = outlier_param
+        self.techniques = {}
         
         # validate the input parameters
         self._validate_params(output_data, verbose, logfile)

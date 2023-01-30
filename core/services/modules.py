@@ -25,6 +25,8 @@ Modules are used by the AutoClean pipeline for data cleaning and preprocessing.
 class MissingValues:
     def handle(self, df, _n_neighbors=3):
         # function for handling missing values in the data
+
+        techniques = {}
         if self.missing_num or self.missing_categ:
             logger.info(
                 "Started handling of missing values...", str(self.missing_num).upper()
@@ -33,9 +35,11 @@ class MissingValues:
             self.count_missing = df.isna().sum().sum()
 
             if self.count_missing != 0:
+                techniques["missing_values_count"] = self.count_missing
                 logger.info("Found a total of {} missing value(s)", self.count_missing)
                 df = df.dropna(how="all")
                 df.reset_index(drop=True)
+                cols_num = df.select_dtypes(include=np.number).columns
 
                 if self.missing_num:  # numeric data
                     logger.info(
@@ -101,6 +105,9 @@ class MissingValues:
                             "Deletion of {} CATEGORICAL missing value(s) succeeded",
                             self.count_missing - df.isna().sum().sum(),
                         )
+                techniques.update({a: "linreg" for a in cols_num})
+                techniques.update({a: "knn" for a in df.columns if a not in cols_num})
+
             else:
                 logger.debug("{} missing values found", self.count_missing)
             end = timer()
@@ -110,6 +117,7 @@ class MissingValues:
             )
         else:
             logger.info("Skipped handling of missing values")
+        self.techniques["missing_values"] = techniques
         return df
 
     def _impute(self, df, imputer, type):
@@ -339,8 +347,17 @@ class MissingValues:
 
 
 class Outliers:
-    def handle(self, df):
+    def handle(self, df: pd.DataFrame):
         # function for handling of outliers in the data
+        nums_only = df.select_dtypes(include=np.number)
+        Q1 = nums_only.quantile(0.25)
+        Q3 = nums_only.quantile(0.75)
+        IQR = Q3 - Q1
+        outlier_count = (
+            (nums_only < (Q1 - 1.5 * IQR)) | (nums_only > (Q3 + 1.5 * IQR))
+        ).sum()
+        self.techniques["outlier_count"] = outlier_count.to_dict()
+
         if self.outliers:
             logger.info(
                 'Started handling of outliers... Method: "{}"',
@@ -685,6 +702,7 @@ class EncodeCateg:
 
 class Duplicates:
     def handle(self, df):
+        techniques = {}
         if self.duplicates:
             logger.info(
                 'Started handling of duplicates... Method: "{}"',
@@ -697,10 +715,11 @@ class Duplicates:
                 df = df.reset_index(drop=True)
                 new = df.shape
                 count = original[0] - new[0]
+                techniques["dropped_rows"] = count
                 if count != 0:
                     logger.debug("Deletion of {} duplicate(s) succeeded", count)
                 else:
-                    logger.debug("{} missing values found", count)
+                    logger.debug("{} duplicate values found", count)
                 end = timer()
                 logger.info(
                     "Completed handling of duplicates in {} seconds",
@@ -711,4 +730,5 @@ class Duplicates:
                 logger.warning("Handling of duplicates failed")
         else:
             logger.info("Skipped handling of duplicates")
+        self.techniques.update(techniques)
         return df

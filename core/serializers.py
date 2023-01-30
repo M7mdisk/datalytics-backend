@@ -66,16 +66,9 @@ class DatasetSerializer(serializers.ModelSerializer):
 
 
 class ColumnSerializer(serializers.ModelSerializer):
-
-    applied_techniques = serializers.SlugRelatedField(
-        many=True,
-        slug_field="name",
-        read_only=True,
-    )
-
     class Meta:
         model = Column
-        fields = ["id", "name", "applied_techniques"]
+        fields = ["id", "name"]
 
 
 class DetailsDatasetSerializer(serializers.ModelSerializer):
@@ -94,6 +87,7 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
             "columns",
             "data",
             "url",
+            "applied_techniques",
         ]
 
     def get_data(self, dataframe):
