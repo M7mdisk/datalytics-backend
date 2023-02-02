@@ -14,7 +14,7 @@ class CreateDatasetSerializer(serializers.ModelSerializer):
 
 
 class DatasetSerializer(serializers.ModelSerializer):
-    columns = serializers.SlugRelatedField(many=True, slug_field="name", read_only=True)
+    columns = serializers.ReadOnlyField(source="column_names")
     size = serializers.IntegerField(source="file.size", read_only=True)
 
     class Meta:
@@ -30,15 +30,8 @@ class DatasetSerializer(serializers.ModelSerializer):
         ]
 
 
-class ColumnSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Column
-        fields = ["id", "name"]
-
-
 class DetailsDatasetSerializer(serializers.ModelSerializer):
     size = serializers.IntegerField(source="file.size", read_only=True)
-    columns = ColumnSerializer(many=True, read_only=True)
     url = serializers.CharField(source="file.url")
     data = serializers.SerializerMethodField()
 
@@ -49,7 +42,6 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
             "uploaded_at",
             "status",
             "size",
-            "columns",
             "data",
             "url",
             "applied_techniques",
@@ -65,6 +57,12 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
 
         data = df.head(10).to_json(orient="records")
         return {"data": json.loads(data), "columns": json.loads(missing_values_json)}
+
+
+class ColumnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Column
+        fields = ["id", "name"]
 
 
 class CreateMLModelSerializer(serializers.ModelSerializer):

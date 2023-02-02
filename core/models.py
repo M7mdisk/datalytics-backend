@@ -39,7 +39,13 @@ class Dataset(models.Model):
             df = pd.read_excel(self.file)
         else:
             raise Exception("File extention not valid")
+        self.file.seek(0)
         return df.copy(deep=True)
+
+    @property
+    def column_names(self):
+        self.file.seek(0)
+        return list(self.df.columns.values)
 
     @property
     def file_name(self):

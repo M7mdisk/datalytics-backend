@@ -42,6 +42,7 @@ def clean_dataset(request, id):
 
     dataset.status = Dataset.CLEANED
     dataset.save()
+    dataset.file.seek(0)
     dataset.refresh_from_db()
     return Response(DetailsDatasetSerializer(dataset).data)
 
