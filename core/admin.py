@@ -1,7 +1,5 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
-from .models import User, Dataset, MLModel
-from .managers import UserManager
+from .models import Dataset, MLModel
 from django.utils.html import format_html
 
 
@@ -24,11 +22,6 @@ class MLModelInstanceAdmin(admin.ModelAdmin):
 
     def get_status(self, obj):
         return obj.get_status_display()
-
-
-@admin.register(User)
-class UserAdmin(admin.ModelAdmin):
-    pass
 
 
 @admin.register(Dataset)

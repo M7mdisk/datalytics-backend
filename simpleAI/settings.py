@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "corsheaders",
+    "authentication",
     "core",
 ]
 
@@ -134,7 +135,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 # New Settings
-AUTH_USER_MODEL = "core.User"
+AUTH_USER_MODEL = "authentication.User"
 
 MEDIA_ROOT = Path.joinpath(BASE_DIR, "uploads/")  # 'data' is my media folder
 MEDIA_URL = "/uploads/"

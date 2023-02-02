@@ -1,20 +1,9 @@
 from django.utils.translation import gettext_lazy as _
 from django.db import models
-from django.contrib.auth.models import AbstractUser
 from django.core.validators import FileExtensionValidator
-from django.core.exceptions import ValidationError
 import pandas as pd
-from .managers import UserManager
 from django.utils.functional import cached_property
-
-
-class User(AbstractUser):
-    # Change email to be requireed instead of username
-    username = None
-    email = models.EmailField(_("email address"), unique=True)
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = []
-    objects = UserManager()
+from authentication.models import User
 
 
 class Dataset(models.Model):
