@@ -129,7 +129,7 @@ class CreateMLModelSerializer(serializers.ModelSerializer):
 
         if any([col.dataset != dataset for col in features]):
             errors["features"] = "All feature columns must be from the same dataset"
-        # # TODO: Validate target is not one of the features
+        # TODO: Validate target is not one of the features
         if len(errors):
             raise serializers.ValidationError(errors)
 

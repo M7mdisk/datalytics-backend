@@ -40,9 +40,8 @@ class Dataset(models.Model):
         "applied_techniques", blank=True, null=True, editable=False
     )
 
-    # TODO: This is actually a horrible idea, save in new blob field on model instead.
-    # Actually maybe not, Two Scoops of django says binary objects are extremely costly on a database
-    @cached_property
+    # TODO: Make this into a cached_property
+    @property
     def df(self):
         extension = self.file.name.split(".")[-1]
         if extension == "csv":

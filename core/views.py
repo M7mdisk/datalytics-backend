@@ -1,4 +1,4 @@
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, RetrieveAPIView, UpdateAPIView
 from rest_framework import serializers
 from rest_framework import viewsets
 from rest_framework import permissions
@@ -10,7 +10,7 @@ from .serializers import (
     MLModelSerializer,
     CreateMLModelSerializer,
 )
-from .models import Dataset, Column, MLModel
+from .models import Dataset, MLModel
 from django.contrib.auth import authenticate
 from rest_framework.authtoken.models import Token
 from rest_framework.response import Response
@@ -20,16 +20,27 @@ from .services.clean import AutoClean
 from django.contrib.auth import get_user_model
 import json
 from pandas.io.json import dumps
-import pandas as pd
-from django.core.files import File
+from django.http import HttpRequest
 
 
-class RegisterView(CreateAPIView):
+class UserView(CreateAPIView, RetrieveAPIView, UpdateAPIView):
     """
-    Create new user.
+    User related endpoints
+    POST: Create new user
+    GET: Get current user info
+    PATCH: partially update user data
     """
 
     serializer_class = UserSerializer
+    queryset = get_user_model()
+
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return []
+        return [permissions.IsAuthenticated()]
+
+    def get_object(self):
+        return self.request.user
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -57,24 +68,40 @@ def login(request):
 
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
+def reset_password(request: HttpRequest):
+    new_password = request.data.get("new_password")
+    user = request.user
+    user.set_password(new_password)
+    user.save()
+    return Response()
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
 def clean_dataset(request, id):
+
     dataset = get_object_or_404(Dataset.objects.filter(owner=request.user), pk=id)
     if dataset.status == Dataset.CLEANED:
         return Response("Dataset already cleaned.", 400)
+
     df = dataset.df
+
     auto_clean = AutoClean(df, mode="auto", encode_categ=False)
+
+    cleaned_df = auto_clean.output
+
+    # This converts all types to python standard types (int64->int, etc)
     dataset.applied_techniques = json.loads(
         dumps(auto_clean.techniques, double_precision=0)
     )
+
+    file_name = "uploads/datasets/" + dataset.file_name
+    with open(file_name, "w+b") as f:
+        cleaned_df.to_csv(f, index=False)
+
     dataset.status = Dataset.CLEANED
-    cleaned_df: pd.DataFrame = auto_clean.output
-    file_name = "uploads/datasets/cleaned/" + dataset.file_name
-    f = open(file_name, "w+b")
-    cleaned_df.to_csv(f, index=False)
-    dataset.file.save(dataset.file_name, File(f), save=True)
-    # TODO: Save cleaned dataset in dataset.file
-    # TODO: Save applied techniques
     dataset.save()
+    dataset.refresh_from_db()
     return Response(DetailsDatasetSerializer(dataset).data)
 
 
@@ -108,8 +135,6 @@ class DatasetViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError(
                 "All columns must be uniquely identifiable (no duplicate column names)"
             )
-        for col in s.df.columns:
-            Column(name=col, dataset=s).save()
         return s
 
 
