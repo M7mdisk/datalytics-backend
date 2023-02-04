@@ -349,16 +349,27 @@ class MissingValues:
 class Outliers:
     def handle(self, df: pd.DataFrame):
         # function for handling of outliers in the data
+        # TODO: Testing
+
         nums_only = df.select_dtypes(include=np.number)
         Q1 = nums_only.quantile(0.25)
         Q3 = nums_only.quantile(0.75)
         IQR = Q3 - Q1
-        outlier_count = (
-            (nums_only < (Q1 - 1.5 * IQR)) | (nums_only > (Q3 + 1.5 * IQR))
-        ).sum()
+
+        outlier_mask = (nums_only < (Q1 - 1.5 * IQR)) | (nums_only > (Q3 + 1.5 * IQR))
+        outlier_count = (outlier_mask).sum()
+
         self.techniques["outlier_count"] = outlier_count.to_dict()
 
+        rows_with_outliers_count = (outlier_mask).sum(axis=1).sum()
+
+        if rows_with_outliers_count > 0 and rows_with_outliers_count < 0.05 * len(df):
+            df = Outliers._delete(self, df)
+            self.techniques["outlier_handeling"] = "delete"
+            return df
+
         if self.outliers:
+            self.techniques["outlier_handeling"] = "impute"
             logger.info(
                 'Started handling of outliers... Method: "{}"',
                 str(self.outliers).upper(),
