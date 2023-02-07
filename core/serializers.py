@@ -65,7 +65,7 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
         )
         missing_values_json = missing_value_df.to_json(orient="records")
 
-        data = df.head(10).to_json(orient="records")
+        data = df.to_json(orient="records")
         return {"data": json.loads(data), "columns": json.loads(missing_values_json)}
 
 
