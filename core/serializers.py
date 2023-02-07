@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 import json
 import pandas as pd
 from collections import defaultdict
+import numpy as np
 
 
 class ColumnSerializer(serializers.ModelSerializer):
@@ -58,15 +59,32 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
         ]
 
     def get_data(self, dataframe):
-        df = dataframe.df
+        df: pd.DataFrame = dataframe.df
         percent_missing = df.isnull().sum() * 100 / len(df)
-        missing_value_df = pd.DataFrame(
+        column_info = pd.DataFrame(
             {"column_name": df.columns, "percent_missing": percent_missing}
         )
-        missing_values_json = missing_value_df.to_json(orient="records")
+        column_info = json.loads(column_info.to_json(orient="records"))
 
-        data = df.to_json(orient="records")
-        return {"data": json.loads(data), "columns": json.loads(missing_values_json)}
+        nums_only = df.select_dtypes(include=np.number)
+        Q1 = nums_only.quantile(0.25)
+        Q3 = nums_only.quantile(0.75)
+        IQR = Q3 - Q1
+        outlier_mask = (nums_only < (Q1 - 1.5 * IQR)) | (nums_only > (Q3 + 1.5 * IQR))
+        outliers = nums_only[outlier_mask]
+
+        outlier_values = {
+            col: list(outliers[col].dropna().unique()) for col in outliers
+        }
+
+        # Append outlier info to column info
+        column_info = [
+            {**d, "outliers": outlier_values.get(d["column_name"]) or []}
+            for d in column_info
+        ]
+
+        data = df.head(10).to_json(orient="records")
+        return {"data": json.loads(data), "columns": column_info}
 
 
 class CreateMLModelSerializer(serializers.ModelSerializer):
