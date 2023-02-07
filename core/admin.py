@@ -1,6 +1,12 @@
 from django.contrib import admin
-from .models import Dataset, MLModel
+from .models import Dataset, MLModel, Column
 from django.utils.html import format_html
+
+
+@admin.register(Column)
+class ColumnAdmin(admin.ModelAdmin):
+    list_display = ("id", "__str__")
+    list_display_links = ("__str__",)
 
 
 @admin.register(MLModel)

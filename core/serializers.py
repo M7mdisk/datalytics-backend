@@ -3,6 +3,7 @@ from .models import Dataset, Column, MLModel
 from django.utils.translation import gettext_lazy as _
 import json
 import pandas as pd
+from collections import defaultdict
 
 
 class ColumnSerializer(serializers.ModelSerializer):
@@ -77,29 +78,29 @@ class CreateMLModelSerializer(serializers.ModelSerializer):
         target = attrs["target"]
         features = attrs["features"]
         dataset = attrs["dataset"]
-        errors = {}
+        errors = defaultdict(list)
 
         if dataset.status != Dataset.CLEANED:
-            errors.setdefault("dataset", []).append(
-                "Dataset must be cleaned before creating model."
-            )
+            errors["dataset"].append("Dataset must be cleaned before creating model.")
             raise serializers.ValidationError(errors)
 
         if target.dataset != dataset:
-            errors.setdefault("target", []).append("Target must be from same dataset")
+            errors["target"].append("Target must be from same dataset")
 
         if target in features:
-            errors.setdefault("target", []).append(
-                "Target cannot be one of the features"
-            )
+            errors["target"].append("Target cannot be one of the features")
 
         if any([col.dataset != dataset for col in features]):
             errors["features"] = "All feature columns must be from the same dataset"
-        # TODO: Validate target is not one of the features
+
         if len(errors):
             raise serializers.ValidationError(errors)
 
         return super().validate(attrs)
+
+    def to_representation(self, instance):
+        serializer = MLModelSerializer(instance)
+        return serializer.data
 
 
 class MLModelSerializer(serializers.ModelSerializer):
@@ -107,6 +108,29 @@ class MLModelSerializer(serializers.ModelSerializer):
     features = serializers.SlugRelatedField(
         slug_field="name", many=True, read_only=True
     )
+    dataset = serializers.SlugRelatedField(slug_field="file_name", read_only=True)
+
+    class Meta:
+        model = MLModel
+        fields = [
+            "name",
+            "created_at",
+            "model_type",
+            "status",
+            "dataset",
+            "target",
+            "features",
+        ]
+        read_only_fields = ["model_type", "status"]
+
+
+class DetailsMLModelSerializer(serializers.ModelSerializer):
+    target = serializers.SlugRelatedField(slug_field="name", read_only=True)
+    features = serializers.SlugRelatedField(
+        slug_field="name", many=True, read_only=True
+    )
+    dataset = serializers.SlugRelatedField(slug_field="file_name", read_only=True)
+    # TODO: Add details about model accuracy, fields, etc
 
     class Meta:
         model = MLModel

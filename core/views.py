@@ -7,6 +7,7 @@ from .serializers import (
     DetailsDatasetSerializer,
     MLModelSerializer,
     CreateMLModelSerializer,
+    DetailsMLModelSerializer,
 )
 from .models import Dataset, MLModel
 from rest_framework.response import Response
@@ -94,6 +95,8 @@ class MLModelViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create" or self.action == "update":
             return CreateMLModelSerializer
+        if self.action == "retrieve":
+            return DetailsMLModelSerializer
         return MLModelSerializer
 
     def perform_create(self, serializer):
@@ -113,4 +116,4 @@ class MLModelViewSet(viewsets.ModelViewSet):
         s = serializer.save(owner=self.request.user, model_type=model_type)
 
         # TODO: Start model creation process (try different models etc)
-        return s
+        return MLModelSerializer(s).data
