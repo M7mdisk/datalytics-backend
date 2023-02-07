@@ -5,6 +5,12 @@ import json
 import pandas as pd
 
 
+class ColumnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Column
+        fields = ["id", "name"]
+
+
 class CreateDatasetSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(read_only=True)
 
@@ -14,7 +20,8 @@ class CreateDatasetSerializer(serializers.ModelSerializer):
 
 
 class DatasetSerializer(serializers.ModelSerializer):
-    columns = serializers.ReadOnlyField(source="column_names")
+    # columns = serializers.ReadOnlyField(source="column_names")
+    columns = ColumnSerializer(many=True)
     size = serializers.IntegerField(source="file.size", read_only=True)
 
     class Meta:
@@ -34,6 +41,7 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
     size = serializers.IntegerField(source="file.size", read_only=True)
     url = serializers.CharField(source="file.url")
     data = serializers.SerializerMethodField()
+    columns = ColumnSerializer(many=True)
 
     class Meta:
         model = Dataset
@@ -42,6 +50,7 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
             "uploaded_at",
             "status",
             "size",
+            "columns",
             "data",
             "url",
             "applied_techniques",
@@ -57,12 +66,6 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
 
         data = df.head(10).to_json(orient="records")
         return {"data": json.loads(data), "columns": json.loads(missing_values_json)}
-
-
-class ColumnSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Column
-        fields = ["id", "name"]
 
 
 class CreateMLModelSerializer(serializers.ModelSerializer):

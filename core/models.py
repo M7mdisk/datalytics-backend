@@ -4,6 +4,7 @@ from django.core.validators import FileExtensionValidator
 import pandas as pd
 from django.utils.functional import cached_property
 from authentication.models import User
+from django.dispatch import receiver
 
 
 class Dataset(models.Model):
@@ -67,6 +68,12 @@ class Column(models.Model):
     def __str__(self) -> str:
         return f"{self.dataset}: {self.name}"
 
+
+@receiver(models.signals.post_save, sender=Dataset)
+def execute_after_save(sender, instance: Dataset, created, *args, **kwargs):
+    if created:
+        columns = [Column(dataset=instance,name=col) for col in instance.df.columns]
+        Column.objects.bulk_create(columns)
 
 class MLModel(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
