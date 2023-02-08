@@ -80,9 +80,9 @@ class CreateMLModelSerializer(serializers.ModelSerializer):
         dataset = attrs["dataset"]
         errors = defaultdict(list)
 
-        if dataset.status != Dataset.CLEANED:
-            errors["dataset"].append("Dataset must be cleaned before creating model.")
-            raise serializers.ValidationError(errors)
+        # if dataset.status != Dataset.CLEANED:
+        #     errors["dataset"].append("Dataset must be cleaned before creating model.")
+        #     raise serializers.ValidationError(errors)
 
         if target.dataset != dataset:
             errors["target"].append("Target must be from same dataset")
@@ -99,7 +99,7 @@ class CreateMLModelSerializer(serializers.ModelSerializer):
         return super().validate(attrs)
 
     def to_representation(self, instance):
-        serializer = MLModelSerializer(instance)
+        serializer = DetailsMLModelSerializer(instance)
         return serializer.data
 
 
@@ -126,15 +126,14 @@ class MLModelSerializer(serializers.ModelSerializer):
 
 class DetailsMLModelSerializer(serializers.ModelSerializer):
     target = serializers.SlugRelatedField(slug_field="name", read_only=True)
-    features = serializers.SlugRelatedField(
-        slug_field="name", many=True, read_only=True
-    )
+    features = ColumnSerializer(many=True)
     dataset = serializers.SlugRelatedField(slug_field="file_name", read_only=True)
     # TODO: Add details about model accuracy, fields, etc
 
     class Meta:
         model = MLModel
         fields = [
+            "id",
             "name",
             "created_at",
             "model_type",
@@ -142,5 +141,7 @@ class DetailsMLModelSerializer(serializers.ModelSerializer):
             "dataset",
             "target",
             "features",
+            "selected_model_name",
+            "accuracy",
         ]
         read_only_fields = ["model_type", "status"]

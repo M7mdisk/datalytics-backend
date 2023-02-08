@@ -17,7 +17,10 @@ from .services.clean import AutoClean
 import json
 from pandas.io.json import dumps
 
+from .services.ML import MLModelService
 
+
+# TODO: Categorical data made of numbers (0,1)
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def clean_dataset(request, id):
@@ -105,15 +108,22 @@ class MLModelViewSet(viewsets.ModelViewSet):
         dataset = data["dataset"]
 
         df = dataset.df
+        target = data["target"].name
 
         # Determine model type (classifcation or regression)
-        model_type = MLModel.REGERSSION
-        df_categorical_features = df.select_dtypes(include="object")
-        if data["target"].name in df_categorical_features.columns:
-            model_type = MLModel.CLASSIFICATION
+        model_type = MLModelService.get_field_type(df, target)
 
-        print(model_type)
-        s = serializer.save(owner=self.request.user, model_type=model_type)
+        mlservice = MLModelService(df, data["target"], data["features"])
+        best_model, accuracy = mlservice.find_best_model()
+        generated_model, feature_importance = mlservice.generate_model(best_model)
+        print(generated_model)
+        print(feature_importance)
+        s = serializer.save(
+            owner=self.request.user,
+            model_type=model_type,
+            selected_model_name=best_model,
+            selected_model=generated_model,
+            accuracy=accuracy,
+        )
 
-        # TODO: Start model creation process (try different models etc)
-        return MLModelSerializer(s).data
+        return s

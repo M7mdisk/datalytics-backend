@@ -1,10 +1,13 @@
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
 from django.utils.translation import gettext_lazy as _
 from django.db import models
 from django.core.validators import FileExtensionValidator
-import pandas as pd
 from django.utils.functional import cached_property
 from authentication.models import User
 from django.dispatch import receiver
+from picklefield.fields import PickledObjectField
 
 
 class Dataset(models.Model):
@@ -59,21 +62,31 @@ class Dataset(models.Model):
         ordering = ("-uploaded_at",)
 
 
+# TODO: Save encoder for column
 class Column(models.Model):
     dataset = models.ForeignKey(
         Dataset, on_delete=models.CASCADE, related_name="columns"
     )
     name = models.CharField(max_length=1000)
+    encoder = PickledObjectField(null=True, editable=False)
 
     def __str__(self) -> str:
         return f"{self.dataset}: {self.name}"
 
 
 @receiver(models.signals.post_save, sender=Dataset)
-def execute_after_save(sender, instance: Dataset, created, *args, **kwargs):
+def create_dataset_columns(sender, instance: Dataset, created, *args, **kwargs):
     if created:
-        columns = [Column(dataset=instance,name=col) for col in instance.df.columns]
-        Column.objects.bulk_create(columns)
+        df: pd.DataFrame = instance.df
+        columns = [Column(dataset=instance, name=col) for col in df.columns]
+        columns = Column.objects.bulk_create(columns)
+        categorical_cols = set(df.select_dtypes(exclude=np.number).columns)
+        # TODO: VERY SLOW, Improve
+        for col in columns:
+            if col.name in categorical_cols:
+                col.encoder = LabelEncoder().fit(df[col.name])
+                col.save()
+
 
 class MLModel(models.Model):
     owner = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -100,6 +113,10 @@ class MLModel(models.Model):
     )
 
     features = models.ManyToManyField(Column)
+
+    selected_model_name = models.CharField(max_length=10, null=True, editable=False)
+    selected_model = PickledObjectField(null=True, editable=False)
+    accuracy = models.FloatField(null=True, editable=True)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
