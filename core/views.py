@@ -125,5 +125,40 @@ class MLModelViewSet(viewsets.ModelViewSet):
             selected_model=generated_model,
             accuracy=accuracy,
         )
-
+        "Hello world"
         return s
+
+
+# TODO: Error handeling, missing keys, etc
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def get_prediction(request, id):
+    ml_model = get_object_or_404(MLModel.objects.filter(owner=request.user), pk=id)
+    ml_model: MLModel = ml_model
+    if ml_model.model_type == MLModel.CLASSIFICATION:
+        sklearn_model = ml_model.selected_model
+        features = {
+            feature.name: feature.encoder for feature in ml_model.features.all()
+        }
+        data = request.data
+
+        model_input = []
+        for feature in features:
+            feature_value = data[feature]
+            encoder = features[feature]
+            if type(feature_value) == str and encoder:
+                model_input.append(encoder.transform([feature_value])[0])
+            else:
+                model_input.append(data[feature])
+
+        classes = sklearn_model.classes_
+        res = sklearn_model.predict_proba([model_input])[0]
+        prediction = sklearn_model.predict([model_input])[0]
+        prediction_probabilities = dict(zip(classes, res))
+        return Response(
+            {
+                "prediction": prediction,
+                "prediction_probabilities": prediction_probabilities,
+            }
+        )
+    return Response("Not implemented yet", 500)
