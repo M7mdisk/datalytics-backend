@@ -62,7 +62,6 @@ class Dataset(models.Model):
         ordering = ("-uploaded_at",)
 
 
-# TODO: Save encoder for column
 class Column(models.Model):
     dataset = models.ForeignKey(
         Dataset, on_delete=models.CASCADE, related_name="columns"
@@ -86,43 +85,3 @@ def create_dataset_columns(sender, instance: Dataset, created, *args, **kwargs):
             if col.name in categorical_cols:
                 col.encoder = LabelEncoder().fit(df[col.name])
                 col.save()
-
-
-class MLModel(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    name = models.CharField(max_length=50)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    BUILDING = "B"
-    DONE = "D"
-    MODEL_STATUS = [(BUILDING, "Building"), (DONE, "Done")]
-    status = models.CharField(
-        max_length=1, default=BUILDING, choices=MODEL_STATUS, editable=False
-    )
-
-    CLASSIFICATION = "C"
-    REGERSSION = "R"
-    MODEL_TYPE = [(CLASSIFICATION, "Classification"), (REGERSSION, "Regression")]
-    model_type = models.CharField(max_length=1, editable=False, choices=MODEL_TYPE)
-
-    dataset = models.ForeignKey(
-        Dataset, on_delete=models.CASCADE, related_name="models"
-    )
-    target = models.ForeignKey(
-        Column, on_delete=models.CASCADE, related_name="predictors"
-    )
-
-    features = models.ManyToManyField(Column)
-
-    selected_model_name = models.CharField(max_length=10, null=True, editable=False)
-    selected_model = PickledObjectField(null=True, editable=False)
-    accuracy = models.FloatField(null=True, editable=True)
-
-    def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-
-    def __str__(self) -> str:
-        return f"{self.name} -> {self.target}"
-
-    class Meta:
-        verbose_name = "ML Model"

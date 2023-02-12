@@ -5,11 +5,8 @@ from .serializers import (
     DatasetSerializer,
     CreateDatasetSerializer,
     DetailsDatasetSerializer,
-    MLModelSerializer,
-    CreateMLModelSerializer,
-    DetailsMLModelSerializer,
 )
-from .models import Dataset, MLModel
+from .models import Dataset
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
@@ -17,10 +14,7 @@ from .services.clean import AutoClean
 import json
 from pandas.io.json import dumps
 
-from .services.ML import MLModelService
 
-
-# TODO: Categorical data made of numbers (0,1)
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def clean_dataset(request, id):
@@ -82,83 +76,3 @@ class DatasetViewSet(viewsets.ModelViewSet):
                 "All columns must be uniquely identifiable (no duplicate column names)"
             )
         return s
-
-
-class MLModelViewSet(viewsets.ModelViewSet):
-    """
-    API endpoint that allows ML Models to be viewed or edited.
-    """
-
-    serializer_class = MLModelSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        return MLModel.objects.filter(owner=self.request.user)
-
-    def get_serializer_class(self):
-        if self.action == "create" or self.action == "update":
-            return CreateMLModelSerializer
-        if self.action == "retrieve":
-            return DetailsMLModelSerializer
-        return MLModelSerializer
-
-    def perform_create(self, serializer):
-        # breakpoint()
-        data = serializer.validated_data
-        dataset = data["dataset"]
-
-        df = dataset.df
-        target = data["target"].name
-
-        # Determine model type (classifcation or regression)
-        model_type = MLModelService.get_field_type(df, target)
-
-        mlservice = MLModelService(df, data["target"], data["features"])
-        best_model, accuracy = mlservice.find_best_model()
-        generated_model, feature_importance = mlservice.generate_model(best_model)
-        print(generated_model)
-        print(feature_importance)
-        s = serializer.save(
-            owner=self.request.user,
-            model_type=model_type,
-            selected_model_name=best_model,
-            selected_model=generated_model,
-            accuracy=accuracy,
-        )
-        "Hello world"
-        return s
-
-
-# TODO: Error handeling, missing keys, etc
-@api_view(["POST"])
-@permission_classes([permissions.IsAuthenticated])
-def get_prediction(request, id):
-    ml_model = get_object_or_404(MLModel.objects.filter(owner=request.user), pk=id)
-    ml_model: MLModel = ml_model
-    if ml_model.model_type == MLModel.CLASSIFICATION:
-        sklearn_model = ml_model.selected_model
-        features = {
-            feature.name: feature.encoder for feature in ml_model.features.all()
-        }
-        data = request.data
-
-        model_input = []
-        for feature in features:
-            feature_value = data[feature]
-            encoder = features[feature]
-            if type(feature_value) == str and encoder:
-                model_input.append(encoder.transform([feature_value])[0])
-            else:
-                model_input.append(data[feature])
-
-        classes = sklearn_model.classes_
-        res = sklearn_model.predict_proba([model_input])[0]
-        prediction = sklearn_model.predict([model_input])[0]
-        prediction_probabilities = dict(zip(classes, res))
-        return Response(
-            {
-                "prediction": prediction,
-                "prediction_probabilities": prediction_probabilities,
-            }
-        )
-    return Response("Not implemented yet", 500)
