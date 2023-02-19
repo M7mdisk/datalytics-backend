@@ -73,7 +73,9 @@ class DatasetViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
 
         s: Dataset = serializer.save(
-            owner=self.request.user, uncleaned_file=serializer.validated_data["file"]
+            name=serializer.validated_data["file"].name,
+            owner=self.request.user,
+            uncleaned_file=serializer.validated_data["file"],
         )
 
         if s.df.columns.duplicated().any():

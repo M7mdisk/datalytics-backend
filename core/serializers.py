@@ -23,6 +23,7 @@ class CreateDatasetSerializer(serializers.ModelSerializer):
 
 class DatasetSerializer(serializers.ModelSerializer):
     # columns = serializers.ReadOnlyField(source="column_names")
+    file_name = serializers.CharField(source="name")
     columns = ColumnSerializer(many=True)
     size = serializers.IntegerField(source="file.size", read_only=True)
 
@@ -40,6 +41,7 @@ class DatasetSerializer(serializers.ModelSerializer):
 
 
 class DetailsDatasetSerializer(serializers.ModelSerializer):
+    file_name = serializers.CharField(source="name")
     size = serializers.IntegerField(source="file.size", read_only=True)
     url = serializers.CharField(source="file.url")
     data = serializers.SerializerMethodField()
@@ -83,7 +85,7 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
             for d in column_info
         ]
 
-        data = df.head(10).to_json(orient="records")
+        data = df.to_json(orient="records")
         return {"data": json.loads(data), "columns": column_info}
 
 
