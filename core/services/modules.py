@@ -365,11 +365,10 @@ class Outliers:
 
         if rows_with_outliers_count > 0 and rows_with_outliers_count < 0.05 * len(df):
             df = Outliers._delete(self, df)
-            self.techniques["outlier_handeling"] = "delete"
+            self.techniques["outlier_handeling"] = "Deletion"
             return df
 
         if self.outliers:
-            self.techniques["outlier_handeling"] = "impute"
             logger.info(
                 'Started handling of outliers... Method: "{}"',
                 str(self.outliers).upper(),
@@ -377,6 +376,7 @@ class Outliers:
             start = timer()
 
             if self.outliers in ["auto", "winz"]:
+                self.techniques["outlier_handeling"] = "Imputation"
                 df = Outliers._winsorization(self, df)
             elif self.outliers == "delete":
                 df = Outliers._delete(self, df)

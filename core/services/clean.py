@@ -94,7 +94,7 @@ class AutoClean:
         self._validate_params(output_data, verbose, logfile)
 
         # initialize our class and start the autoclean process
-        self.output = self._clean_data(output_data, input_data)
+        self.output, self.diff = self._clean_data(output_data, input_data)
 
         end = timer()
 
@@ -154,10 +154,18 @@ class AutoClean:
 
     def _clean_data(self, df, input_data):
         # function for starting the autoclean process
+        old_df = df.copy()
         df = df.reset_index(drop=True)
         df = Duplicates.handle(self, df)
         df = MissingValues.handle(self, df)
+        diff = df.compare(old_df).groupby(level=0, axis=1).first().fillna(value=np.nan)
+
         df = Outliers.handle(self, df)
+        if len(df) == len(old_df):
+            diff = (
+                df.compare(old_df).groupby(level=0, axis=1).first().fillna(value=np.nan)
+            )
+
         df = Adjust.convert_datetime(self, df)
         df = Adjust.round_values(self, df, input_data)
-        return df
+        return df, diff

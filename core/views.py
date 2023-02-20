@@ -34,6 +34,11 @@ def clean_dataset(request, id):
     auto_clean = AutoClean(df, mode="auto", encode_categ=False)
 
     cleaned_df = auto_clean.output
+    diff = auto_clean.diff
+    final = {
+        col: diff[col][diff[col].notna()].index.to_list() for col in diff.columns.values
+    }
+    auto_clean.techniques["modified"] = final
 
     # This converts all types to python standard types (int64->int, etc)
     dataset.applied_techniques = json.loads(

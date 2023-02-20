@@ -85,7 +85,7 @@ class DetailsDatasetSerializer(serializers.ModelSerializer):
             for d in column_info
         ]
 
-        data = df.to_json(orient="records")
+        data = df.reset_index().to_json(orient="records")
         return {"data": json.loads(data), "columns": column_info}
 
 
