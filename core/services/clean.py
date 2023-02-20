@@ -154,9 +154,9 @@ class AutoClean:
 
     def _clean_data(self, df, input_data):
         # function for starting the autoclean process
-        old_df = df.copy()
         df = df.reset_index(drop=True)
         df = Duplicates.handle(self, df)
+        old_df = df.copy()
         df = MissingValues.handle(self, df)
         diff = df.compare(old_df).groupby(level=0, axis=1).first().fillna(value=np.nan)
 
