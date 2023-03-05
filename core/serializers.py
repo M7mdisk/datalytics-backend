@@ -133,6 +133,7 @@ class MLModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = MLModel
         fields = [
+            "id",
             "name",
             "created_at",
             "model_type",

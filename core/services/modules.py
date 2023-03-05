@@ -33,6 +33,9 @@ class MissingValues:
             )
             start = timer()
             self.count_missing = df.isna().sum().sum()
+            missing_counts = df.isna().sum()
+            for a in df.columns:
+                techniques[a] = {"count": missing_counts[a]}
 
             if self.count_missing != 0:
                 techniques["missing_values_count"] = self.count_missing
@@ -105,8 +108,11 @@ class MissingValues:
                             "Deletion of {} CATEGORICAL missing value(s) succeeded",
                             self.count_missing - df.isna().sum().sum(),
                         )
-                techniques.update({a: "linreg" for a in cols_num})
-                techniques.update({a: "knn" for a in df.columns if a not in cols_num})
+                for a in df.columns:
+                    if a in cols_num:
+                        techniques[a]["tech"] = "linreg"
+                    else:
+                        techniques[a]["tech"] = "knn"
 
             else:
                 logger.debug("{} missing values found", self.count_missing)
