@@ -24,7 +24,6 @@ from .services.ML import MLModelService
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def clean_dataset(request, id):
-
     dataset = get_object_or_404(Dataset.objects.filter(owner=request.user), pk=id)
     if dataset.status == Dataset.CLEANED:
         return Response("Dataset already cleaned.", 400)
@@ -76,7 +75,6 @@ class DatasetViewSet(viewsets.ModelViewSet):
         return DatasetSerializer
 
     def perform_create(self, serializer):
-
         s: Dataset = serializer.save(
             name=serializer.validated_data["file"].name,
             owner=self.request.user,
@@ -130,9 +128,8 @@ class MLModelViewSet(viewsets.ModelViewSet):
             model_type=model_type,
             selected_model_name=best_model,
             selected_model=generated_model,
-            accuracy=accuracy,
+            accuracy=abs(accuracy),
         )
-        "Hello world"
         return s
 
 

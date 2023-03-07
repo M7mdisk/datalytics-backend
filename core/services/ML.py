@@ -44,7 +44,6 @@ class MLModelService:
         return model_type
 
     def find_best_model(self):
-
         model_type = MLModelService.get_field_type(self.df, self.target.name)
         if model_type == MLModel.CLASSIFICATION:
             models_dict = classification_models
@@ -78,6 +77,8 @@ class MLModelService:
     ):
         all_models = {**classification_models, **regression_models}
         model = all_models[model_name]()
+        if model_name in ["SVC", "SVR"]:
+            model = all_models[model_name](kernel="linear")
         model.fit(self.x, self.y)
         if model_name in ["DTR", "DTC", "RFC"]:
             feature_importance = model.feature_importances_
