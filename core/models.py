@@ -118,6 +118,7 @@ class MLModel(models.Model):
     selected_model_name = models.CharField(max_length=10, null=True, editable=False)
     selected_model = PickledObjectField(null=True, editable=False)
     accuracy = models.FloatField(null=True, editable=True)
+    feature_importance = models.JSONField()
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

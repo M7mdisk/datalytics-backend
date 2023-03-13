@@ -164,5 +164,6 @@ class DetailsMLModelSerializer(serializers.ModelSerializer):
             "features",
             "selected_model_name",
             "accuracy",
+            "feature_importance",
         ]
         read_only_fields = ["model_type", "status"]

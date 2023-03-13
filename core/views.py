@@ -121,14 +121,18 @@ class MLModelViewSet(viewsets.ModelViewSet):
         mlservice = MLModelService(df, data["target"], data["features"])
         best_model, accuracy = mlservice.find_best_model()
         generated_model, feature_importance = mlservice.generate_model(best_model)
-        print(generated_model)
-        print(feature_importance)
+        if len(feature_importance) == 1:
+            feature_importance = feature_importance[0]
+        feature_importance_json = {
+            a: b for a, b in zip([x.name for x in data["features"]], feature_importance)
+        }
         s = serializer.save(
             owner=self.request.user,
             model_type=model_type,
             selected_model_name=best_model,
             selected_model=generated_model,
             accuracy=abs(accuracy),
+            feature_importance=feature_importance_json,
         )
         return s
 
@@ -139,6 +143,7 @@ class MLModelViewSet(viewsets.ModelViewSet):
 def get_prediction(request, id):
     ml_model = get_object_or_404(MLModel.objects.filter(owner=request.user), pk=id)
     ml_model: MLModel = ml_model
+    # TODO: Use confidence intervals for regression problems
     if ml_model.model_type == MLModel.CLASSIFICATION:
         sklearn_model = ml_model.selected_model
         features = {
