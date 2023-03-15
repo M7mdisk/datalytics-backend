@@ -117,6 +117,7 @@ class MLModelViewSet(viewsets.ModelViewSet):
 
         # Determine model type (classifcation or regression)
         model_type = MLModelService.get_field_type(df, target)
+        feature_names = [x.name for x in data["features"]]
 
         mlservice = MLModelService(df, data["target"], data["features"])
         best_model, accuracy = mlservice.find_best_model()
@@ -124,8 +125,26 @@ class MLModelViewSet(viewsets.ModelViewSet):
         if len(feature_importance) == 1:
             feature_importance = feature_importance[0]
         feature_importance_json = {
-            a: b for a, b in zip([x.name for x in data["features"]], feature_importance)
+            a: b for a, b in zip(feature_names, feature_importance)
         }
+
+        all_predictions = mlservice.get_batch_predictions(
+            df[feature_names], generated_model
+        )
+        df["___prediction__val"] = all_predictions.tolist()
+        if model_type == MLModel.CLASSIFICATION:
+            idces = all_predictions.argmax(axis=0)
+            maxes = all_predictions.max(axis=0)
+            segs = [df[feature_names].iloc[x].to_dict() for x in idces]
+            segments = {
+                a: {"confidence": c, "values": b}
+                for a, b, c in zip(generated_model.classes_, segs, maxes)
+            }
+        else:
+            least_row = df.iloc[df["___prediction__val"].idxmin()].to_dict()
+            most_row = df.iloc[df["___prediction__val"].idxmax()].to_dict()
+            segments = {"most": most_row, "least": least_row}
+
         s = serializer.save(
             owner=self.request.user,
             model_type=model_type,
@@ -133,6 +152,7 @@ class MLModelViewSet(viewsets.ModelViewSet):
             selected_model=generated_model,
             accuracy=abs(accuracy),
             feature_importance=feature_importance_json,
+            segments=segments,
         )
         return s
 

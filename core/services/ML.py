@@ -7,6 +7,9 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.svm import SVC, SVR
 from sklearn.naive_bayes import GaussianNB
+from sklearn.cluster import KMeans
+from sklearn.model_selection import GridSearchCV
+from sklearn.base import BaseEstimator
 
 regression_models = {
     "LINREG": LinearRegression,
@@ -21,6 +24,8 @@ classification_models = {
     "DTC": DecisionTreeClassifier,
     "RFC": RandomForestClassifier,
 }
+
+all_models = {**classification_models, **regression_models}
 
 
 class MLModelService:
@@ -75,7 +80,6 @@ class MLModelService:
         self,
         model_name,
     ):
-        all_models = {**classification_models, **regression_models}
         model = all_models[model_name]()
         if model_name in ["SVC", "SVR"]:
             model = all_models[model_name](kernel="linear")
@@ -86,3 +90,22 @@ class MLModelService:
             feature_importance = model.coef_
 
         return model, feature_importance
+
+    def get_batch_predictions(self, x: pd.DataFrame, sklearn_model: BaseEstimator):
+        model_type = MLModelService.get_field_type(self.df, self.target.name)
+        cols_num = x.select_dtypes(include=np.number).columns
+        features = {feature.name: feature.encoder for feature in self.features}
+        data = pd.DataFrame()
+        for feature in features:
+            feature_value = x[feature]
+            encoder = features[feature]
+            if feature not in cols_num and encoder:
+                data[feature] = pd.Series(encoder.transform(feature_value))
+            else:
+                data[feature] = feature_value
+        if model_type == MLModel.CLASSIFICATION:
+            res = sklearn_model.predict_proba(data)
+            return res
+        else:
+            res = sklearn_model.predict(data)
+            return res
