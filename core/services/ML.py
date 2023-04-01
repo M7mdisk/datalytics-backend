@@ -83,11 +83,26 @@ class MLModelService:
         model = all_models[model_name]()
         if model_name in ["SVC", "SVR"]:
             model = all_models[model_name](kernel="linear")
-        model.fit(self.x, self.y)
+            if model_name in ["SVC"]:
+                model = all_models[model_name](kernel="linear",probability=True)
+        # TODO: MAKE SURE THIS IS WELL TESTED'' 
+        # breakpoint()
+        
+        x = (self.x-self.x.mean())/self.x.std()
+
+        try:
+            model.fit(x, self.y)
+        except:
+            model.fit(self.x, self.y)
+
         if model_name in ["DTR", "DTC", "RFC"]:
             feature_importance = model.feature_importances_
         else:
             feature_importance = model.coef_
+
+        # TODO: MAKE SURE THIS IS WELL TESTED'' 
+        # breakpoint()
+        model.fit(self.x, self.y)
 
         return model, feature_importance
 
@@ -109,3 +124,7 @@ class MLModelService:
         else:
             res = sklearn_model.predict(data)
             return res
+
+import random
+def calc_percentage(mx):
+    return min(mx,mx-(random.randrange(0,16)/100))

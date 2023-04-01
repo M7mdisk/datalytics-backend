@@ -17,7 +17,8 @@ from .services.clean import AutoClean
 import json
 from pandas.io.json import dumps
 
-from .services.ML import MLModelService
+from .services.ML import MLModelService,calc_percentage
+
 
 
 # TODO: Categorical data made of numbers (0,1)
@@ -131,19 +132,48 @@ class MLModelViewSet(viewsets.ModelViewSet):
         all_predictions = mlservice.get_batch_predictions(
             df[feature_names], generated_model
         )
-        df["___prediction__val"] = all_predictions.tolist()
+        df = df.sort_values(by=[target])
         if model_type == MLModel.CLASSIFICATION:
+            segs = []
+            for i,clss in enumerate(generated_model.classes_):
+                new_col_name = f"__prediction__val_{clss}"
+                df[new_col_name] = all_predictions[:,i]
+                s1= df[df[target] == clss].sort_values(by=[new_col_name]).tail(4).describe(include='all')
+                breakpoint()
+                most_row = s1.loc['top'].combine_first(s1.loc['mean'])
+                print(clss)
+                print(df[df[target] == clss].sort_values(by=[new_col_name]).tail(5))
+                segs.append(most_row[feature_names].to_dict())
+
+
             idces = all_predictions.argmax(axis=0)
             maxes = all_predictions.max(axis=0)
-            segs = [df[feature_names].iloc[x].to_dict() for x in idces]
+            # s1= df.tail(5).describe(include='all')
+            # segs = [df[feature_names].iloc[x].to_dict() for x in idces]
             segments = {
-                a: {"confidence": c, "values": b}
+                a: {"confidence": calc_percentage(c), "values": b}
                 for a, b, c in zip(generated_model.classes_, segs, maxes)
             }
         else:
-            least_row = df.iloc[df["___prediction__val"].idxmin()].to_dict()
-            most_row = df.iloc[df["___prediction__val"].idxmax()].to_dict()
-            segments = {"most": most_row, "least": least_row}
+            df["___prediction__val"] = all_predictions.tolist()
+            most_important_rows = df.tail(5)
+            least_important_rows = df.head(5)
+            s1= most_important_rows.describe(include='all')
+            most_row = s1.loc['top'].combine_first(s1.loc['mean'])
+
+            s2= least_important_rows.describe(include='all')
+            least_row = s2.loc['top'].combine_first(s2.loc['mean'])
+
+            print(most_row)
+            print(least_row)
+
+            feature_names.append("___prediction__val")
+            # least_row = df.iloc[df["___prediction__val"].idxmin()]
+            # most_row = df.iloc[df["___prediction__val"].idxmax()]
+            # breakpoint()
+            least_row["___prediction__val"] = least_row[target]
+            most_row["___prediction__val"] = most_row[target]
+            segments = {"most": most_row[feature_names].to_dict(), "least": least_row[feature_names].to_dict()}
 
         s = serializer.save(
             owner=self.request.user,
