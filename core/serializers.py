@@ -8,9 +8,15 @@ import numpy as np
 
 
 class ColumnSerializer(serializers.ModelSerializer):
+    values = serializers.SerializerMethodField()
     class Meta:
         model = Column
-        fields = ["id", "name"]
+        fields = ["id", "name","values"]
+
+    def get_values(self,instance: Column):
+        if instance.encoder:
+            return instance.encoder.classes_
+        return None
 
 
 class CreateDatasetSerializer(serializers.ModelSerializer):

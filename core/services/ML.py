@@ -104,6 +104,9 @@ class MLModelService:
         # breakpoint()
         model.fit(self.x, self.y)
 
+        if len(feature_importance) == 1:
+            feature_importance = feature_importance[0]
+
         return model, feature_importance
 
     def get_batch_predictions(self, x: pd.DataFrame, sklearn_model: BaseEstimator):

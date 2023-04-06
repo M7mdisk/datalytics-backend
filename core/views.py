@@ -124,8 +124,7 @@ class MLModelViewSet(viewsets.ModelViewSet):
         mlservice = MLModelService(df, data["target"], data["features"])
         best_model, accuracy = mlservice.find_best_model()
         generated_model, feature_importance = mlservice.generate_model(best_model)
-        if len(feature_importance) == 1:
-            feature_importance = feature_importance[0]
+
         feature_importance_json = {
             a: b for a, b in zip(feature_names, feature_importance)
         }
@@ -210,10 +209,11 @@ class MLModelViewSet(viewsets.ModelViewSet):
             # least_row = df.iloc[df["___prediction__val"].idxmin()]
             # most_row = df.iloc[df["___prediction__val"].idxmax()]
             # breakpoint()
-            least_row["___prediction__val"] = least_row[target]
-            most_row["___prediction__val"] = most_row[target]
+            res_least["___prediction__val"] = least_row[target]
+            res_most["___prediction__val"] = most_row[target]
 
-            segments = {"most": most_row[feature_names].to_dict(), "least": least_row[feature_names].to_dict()}
+
+            segments = {"most": pd.Series(res_most)[feature_names].to_dict(), "least": pd.Series(res_least)[feature_names].to_dict()}
 
         s = serializer.save(
             owner=self.request.user,
@@ -233,26 +233,26 @@ class MLModelViewSet(viewsets.ModelViewSet):
 def get_prediction(request, id):
     ml_model = get_object_or_404(MLModel.objects.filter(owner=request.user), pk=id)
     ml_model: MLModel = ml_model
+    sklearn_model = ml_model.selected_model
+    features = {
+        feature.name: feature.encoder for feature in ml_model.features.all()
+    }
+    data = request.data
     # TODO: Use confidence intervals for regression problems
+    model_input = []
+    for feature in features:
+        feature_value = data[feature]
+        encoder = features[feature]
+        if type(feature_value) == str and encoder:
+            model_input.append(encoder.transform([feature_value])[0])
+        else:
+            model_input.append(data[feature])
+
+    prediction = sklearn_model.predict([model_input])[0]
+
     if ml_model.model_type == MLModel.CLASSIFICATION:
-        sklearn_model = ml_model.selected_model
-        features = {
-            feature.name: feature.encoder for feature in ml_model.features.all()
-        }
-        data = request.data
-
-        model_input = []
-        for feature in features:
-            feature_value = data[feature]
-            encoder = features[feature]
-            if type(feature_value) == str and encoder:
-                model_input.append(encoder.transform([feature_value])[0])
-            else:
-                model_input.append(data[feature])
-
         classes = sklearn_model.classes_
         res = sklearn_model.predict_proba([model_input])[0]
-        prediction = sklearn_model.predict([model_input])[0]
         prediction_probabilities = dict(zip(classes, res))
         return Response(
             {
@@ -260,4 +260,9 @@ def get_prediction(request, id):
                 "prediction_probabilities": prediction_probabilities,
             }
         )
-    return Response("Not implemented yet", 500)
+
+    return Response(
+        {
+            "prediction": prediction,
+        }
+    )
