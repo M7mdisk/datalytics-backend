@@ -16,6 +16,7 @@ from django.shortcuts import get_object_or_404
 from .services.clean import AutoClean
 import json
 from pandas.io.json import dumps
+import pandas as pd
 
 from .services.ML import MLModelService,calc_percentage
 
@@ -133,17 +134,29 @@ class MLModelViewSet(viewsets.ModelViewSet):
             df[feature_names], generated_model
         )
         df = df.sort_values(by=[target])
+        df_categorical_features = df.select_dtypes(include="object")
         if model_type == MLModel.CLASSIFICATION:
             segs = []
             for i,clss in enumerate(generated_model.classes_):
                 new_col_name = f"__prediction__val_{clss}"
                 df[new_col_name] = all_predictions[:,i]
                 s1= df[df[target] == clss].sort_values(by=[new_col_name]).tail(4).describe(include='all')
-                breakpoint()
-                most_row = s1.loc['top'].combine_first(s1.loc['mean'])
+                most_row = s1.loc['top'].combine_first(s1.loc['max'])
+                least_row = s1.loc['top'].combine_first(s1.loc['min'])
+
+                res = {}
+                for index, value in most_row.items():
+                    if str(index).startswith("__"):
+                        res[index] = value
+                        continue
+                    if index in df_categorical_features:
+                        res[index] = least_row[index]
+                    else:
+                        res[index] = str(least_row[index]) + ' - ' + str(most_row[index])
+                
                 print(clss)
                 print(df[df[target] == clss].sort_values(by=[new_col_name]).tail(5))
-                segs.append(most_row[feature_names].to_dict())
+                segs.append(pd.Series(res)[feature_names].to_dict())
 
 
             idces = all_predictions.argmax(axis=0)
@@ -160,12 +173,38 @@ class MLModelViewSet(viewsets.ModelViewSet):
             least_important_rows = df.head(5)
             s1= most_important_rows.describe(include='all')
             most_row = s1.loc['top'].combine_first(s1.loc['mean'])
+            most_row_min = s1.loc['top'].combine_first(s1.loc['min'])
+            most_row_max = s1.loc['top'].combine_first(s1.loc['max'])
+
+
+            res_most = {}
+            for index, value in most_row_min.items():
+                if str(index).startswith("__"):
+                    res_most[index] = value
+                    continue
+                if index in df_categorical_features:
+                    res_most[index] = most_row[index]
+                else:
+                    res_most[index] = str(most_row_min[index]) + ' - ' + str(most_row_max[index])
 
             s2= least_important_rows.describe(include='all')
             least_row = s2.loc['top'].combine_first(s2.loc['mean'])
 
-            print(most_row)
-            print(least_row)
+            least_row_min = s2.loc['top'].combine_first(s2.loc['min'])
+            least_row_max = s2.loc['top'].combine_first(s2.loc['max'])
+
+
+            res_least = {}
+            for index, value in least_row_min.items():
+                if str(index).startswith("__"):
+                    res_least[index] = value
+                    continue
+                if index in df_categorical_features:
+                    res_least[index] = least_row[index]
+                else:
+                    res_least[index] = str(least_row_min[index]) + ' - ' + str(least_row_max[index])
+            print(res_most)
+            print(res_least)
 
             feature_names.append("___prediction__val")
             # least_row = df.iloc[df["___prediction__val"].idxmin()]
@@ -173,6 +212,7 @@ class MLModelViewSet(viewsets.ModelViewSet):
             # breakpoint()
             least_row["___prediction__val"] = least_row[target]
             most_row["___prediction__val"] = most_row[target]
+
             segments = {"most": most_row[feature_names].to_dict(), "least": least_row[feature_names].to_dict()}
 
         s = serializer.save(
