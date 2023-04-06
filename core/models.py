@@ -85,7 +85,7 @@ def create_dataset_columns(sender, instance: Dataset, created, *args, **kwargs):
         # TODO: VERY SLOW, Improve
         for col in columns:
             if col.name in categorical_cols:
-                col.encoder = LabelEncoder().fit(df[col.name])
+                col.encoder = LabelEncoder().fit(df[col.name].dropna())
                 col.save()
 
 

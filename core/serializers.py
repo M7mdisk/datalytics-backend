@@ -14,7 +14,7 @@ class ColumnSerializer(serializers.ModelSerializer):
         fields = ["id", "name","values"]
 
     def get_values(self,instance: Column):
-        if instance.encoder:
+        if instance.encoder != None:
             return instance.encoder.classes_
         return None
 
