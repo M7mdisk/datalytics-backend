@@ -1,28 +1,54 @@
 import numpy as np
 import pandas as pd
-from core.models import MLModel, Dataset, Column
-from sklearn.linear_model import LogisticRegression, LinearRegression, BayesianRidge
+from core.models import MLModel, Column
+from sklearn.linear_model import (
+    LogisticRegression,
+    LinearRegression,
+    BayesianRidge,
+    Lasso,
+    ElasticNet,
+)
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
-from sklearn.svm import SVC, SVR
-from sklearn.naive_bayes import GaussianNB
-from sklearn.cluster import KMeans
+from sklearn.svm import SVC, SVR, LinearSVC
 from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder, OrdinalEncoder
+from category_encoders import TargetEncoder
+from sklearn.compose import TransformedTargetRegressor
+from collections import namedtuple
+
+from sklearn import set_config
+
+set_config(transform_output="pandas")
+
+BestModel = namedtuple(
+    "Model", ["model_name", "score", "estimator", "feature_importance"]
+)
 
 regression_models = {
     "LINREG": LinearRegression,
     "BR": BayesianRidge,
+    "LSO": Lasso,
+    "EN": ElasticNet,
     "SVR": SVR,  # Support Vector Regression
     "DTR": DecisionTreeRegressor,
+    "GBR": GradientBoostingRegressor,
 }
 
 classification_models = {
     "LOGREG": LogisticRegression,
-    "SVC": SVC,  # Support Vector classifier
+    "SVC": LinearSVC,  # Support Vector classifier
     "DTC": DecisionTreeClassifier,
     "RFC": RandomForestClassifier,
+    "GBC": GradientBoostingClassifier,
 }
 
 all_models = {**classification_models, **regression_models}
@@ -48,7 +74,7 @@ class MLModelService:
             model_type = MLModel.CLASSIFICATION
         return model_type
 
-    def find_best_model(self):
+    def make_best_model(self):
         model_type = MLModelService.get_field_type(self.df, self.target.name)
         if model_type == MLModel.CLASSIFICATION:
             models_dict = classification_models
@@ -59,75 +85,116 @@ class MLModelService:
         x = self.x
         y = self.y
 
-        categorical_cols = set(self.df.select_dtypes(exclude=np.number).columns)
+        categorical_cols = list(self.x.select_dtypes(exclude=np.number).columns)
+        numerical_cols = list(self.x.select_dtypes(include=np.number).columns)
 
-        for col in self.features:
-            if col.name in categorical_cols:
-                x[col.name] = col.encoder.transform(x[col.name])
-        if target_name in categorical_cols:
-            y = self.target.encoder.transform(y)
+        ONEHOT_THRESHHOLD = 4
 
-        results = {}
+        print("aaaa")
+        target_encoding_cols = [
+            col for col in categorical_cols if x[col].nunique() > ONEHOT_THRESHHOLD
+        ]
+        onehot_encoding_cols = [
+            col for col in categorical_cols if x[col].nunique() <= ONEHOT_THRESHHOLD
+        ]
+
+        # if model_type == MLModel.CLASSIFICATION:
+        #     y = self.target.encoder.transform(y)
+
+        # TODO: Try target encoder
+        onehot_transformer = OneHotEncoder(handle_unknown="ignore", drop="if_binary")
+
+        target_transformer = TargetEncoder()
+
+        numerical_transformer = StandardScaler()
+
+        # TODO: DO NOT USE ONEHOT FOR EVERYTHING, SUCKS FOR HIGH CARDINALITY
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ("onehot", onehot_transformer, categorical_cols),
+                # ("target", OrdinalEncoder(), target_encoding_cols),
+                ("numerical", numerical_transformer, numerical_cols),
+            ],
+            verbose_feature_names_out=False,
+        )
+
+        results: dict[str, tuple[float, BaseEstimator]] = {}
         for model_name, model in models_dict.items():
-            estimator = model()
+            print(model_name)
+            if model_name == "SVC":
+                model = model()
+            elif model_name == "SVR":
+                model = model(kernel="linear")
+            else:
+                model = model()
+
+            # TODO: Gridsearch adding polynomial terms
+            steps = [("preprocessor", preprocessor), ("model", model)]
+
+            estimator = Pipeline(steps)
             scores = cross_val_score(estimator, x, y)
+            print(model_name, scores, scores.mean(), "done")
             score = scores.mean()
-            results[model_name] = score
+            results[model_name] = (score, estimator)
 
-        return max(results, key=results.get), max(results.values())
+        best_model_name = max(results, key=lambda x: results.get(x)[0])
+        best_estimator_score, best_estimator = results.get(best_model_name)
 
-    def generate_model(
-        self,
-        model_name,
-    ):
-        model = all_models[model_name]()
-        if model_name in ["SVC", "SVR"]:
-            model = all_models[model_name](kernel="linear")
-            if model_name in ["SVC"]:
-                model = all_models[model_name](kernel="linear",probability=True)
-        # TODO: MAKE SURE THIS IS WELL TESTED'' 
-        # breakpoint()
-        
-        x = (self.x-self.x.mean())/self.x.std()
+        best_estimator.fit(x, y)
 
-        try:
-            model.fit(x, self.y)
-        except:
-            model.fit(self.x, self.y)
+        encoded_feature_names: list[str] = best_estimator.named_steps[
+            "preprocessor"
+        ].get_feature_names_out()
+        feature_importance = self.get_feature_importance(
+            best_model_name, best_estimator.named_steps["model"]
+        )
+        assert len(encoded_feature_names) == len(feature_importance)
 
-        if model_name in ["DTR", "DTC", "RFC"]:
-            feature_importance = model.feature_importances_
+        importances = {}
+        for feature in x.columns:
+            importances[feature] = 0
+            for i, col in enumerate(encoded_feature_names):
+                if col.startswith(feature):
+                    importances[feature] += abs(feature_importance[i])
+
+        return BestModel(
+            best_model_name, best_estimator_score, best_estimator, importances
+        )
+
+    @staticmethod
+    def get_feature_importance(model_name, model):
+        if model_name in ["DTR", "DTC", "RFC", "GBC", "GBR"]:
+            return model.feature_importances_
         else:
-            feature_importance = model.coef_
-
-        # TODO: MAKE SURE THIS IS WELL TESTED'' 
-        # breakpoint()
-        model.fit(self.x, self.y)
-
-        if len(feature_importance) == 1:
-            feature_importance = feature_importance[0]
-
-        return model, feature_importance
+            return model.coef_[0]
 
     def get_batch_predictions(self, x: pd.DataFrame, sklearn_model: BaseEstimator):
         model_type = MLModelService.get_field_type(self.df, self.target.name)
-        cols_num = x.select_dtypes(include=np.number).columns
-        features = {feature.name: feature.encoder for feature in self.features}
-        data = pd.DataFrame()
-        for feature in features:
-            feature_value = x[feature]
-            encoder = features[feature]
-            if feature not in cols_num and encoder:
-                data[feature] = pd.Series(encoder.transform(feature_value))
-            else:
-                data[feature] = feature_value
         if model_type == MLModel.CLASSIFICATION:
-            res = sklearn_model.predict_proba(data)
-            return res
+            return sklearn_model.predict_proba(x)
         else:
-            res = sklearn_model.predict(data)
-            return res
+            return sklearn_model.predict(x)
+
 
 import random
+
+
 def calc_percentage(mx):
-    return min(mx,mx-(random.randrange(0,16)/100))
+    return min(mx, mx - (random.randrange(0, 13) / 100))
+
+
+def normalize_accuracy(x):
+    return x
+
+
+from sklearn.base import TransformerMixin, BaseEstimator
+
+
+class Debug(BaseEstimator, TransformerMixin):
+    def transform(self, X):
+        print(X)
+        print(X.shape)
+        return X
+
+    def fit(self, X, y=None, **fit_params):
+        return self
