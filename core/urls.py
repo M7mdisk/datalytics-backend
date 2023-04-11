@@ -3,7 +3,8 @@ from .views import (
     DatasetViewSet,
     MLModelViewSet,
     clean_dataset,
-    get_prediction
+    get_prediction,
+    get_snippets,
 )
 from rest_framework import routers
 
@@ -15,4 +16,5 @@ urlpatterns = [
     path("", include(router.urls)),
     path("datasets/<int:id>/clean/", clean_dataset),
     path("models/<int:id>/predict/", get_prediction),
+    path("models/<int:id>/snippet/", get_snippets),
 ]
