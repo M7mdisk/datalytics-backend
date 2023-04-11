@@ -266,3 +266,53 @@ def get_prediction(request, id):
             "prediction": prediction,
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def get_snippets(request, id):
+    token = request.headers["Authorization"].split(" ")[1]
+    model = get_object_or_404(MLModel.objects.filter(owner=request.user), pk=id)
+    first = model.dataset.df.iloc[0].to_json(indent=4)
+    python = f"""import requests
+import json
+
+url = "http://localhost:8000/api/models/{model.id}/predict/"
+
+payload = {first}
+
+headers = {{
+    'Authorization': 'Token {token}',
+  'Content-Type': 'application/json'
+}}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+
+"""
+
+    js = f"""var myHeaders = new Headers();
+myHeaders.append("Authorization", "Token {token}");
+myHeaders.append("Content-Type", "application/json");
+
+var raw = JSON.stringify({first});
+
+var requestOptions = {{
+  method: 'POST',
+  headers: myHeaders,
+  body: raw,
+  redirect: 'follow'
+}};
+
+fetch("http://localhost:8000/api/models/{model.id}/predict/", requestOptions)
+  .then(response => response.text())
+  .then(result => console.log(result))
+  .catch(error => console.log('error', error));
+    """
+    cURL = f"""curl --location 'http://localhost:8000/api/models/{model.id}/predict/' 
+--header 'Authorization: Token {token}' \
+--header 'Content-Type: application/json' 
+--data '{first}' 
+    """
+    return Response({"py": python, "js": js, "curl": cURL})
