@@ -272,8 +272,10 @@ def get_prediction(request, id):
 @permission_classes([permissions.IsAuthenticated])
 def get_snippets(request, id):
     token = request.headers["Authorization"].split(" ")[1]
-    model = get_object_or_404(MLModel.objects.filter(owner=request.user), pk=id)
-    first = model.dataset.df.iloc[0].to_json(indent=4)
+    model = get_object_or_404(MLModel.objects.filter(owner=request.user).prefetch_related(), pk=id)
+    feature_names =[feature.name for feature in model.features.all()]
+    first = model.dataset.df.iloc[0][feature_names].to_json(indent=4)
+    first_escaped = first.replace("\n","\n")
     python = f"""import requests
 import json
 
@@ -310,9 +312,9 @@ fetch("http://localhost:8000/api/models/{model.id}/predict/", requestOptions)
   .then(result => console.log(result))
   .catch(error => console.log('error', error));
     """
-    cURL = f"""curl --location 'http://localhost:8000/api/models/{model.id}/predict/' 
---header 'Authorization: Token {token}' \
---header 'Content-Type: application/json' 
---data '{first}' 
+    cURL = f"""curl http://localhost:8000/api/models/{model.id}/predict/ -X POST \\
+-H 'Authorization: Token {token}' \\
+-H 'Content-Type: application/json' \\
+--data '{first_escaped}' 
     """
     return Response({"Python": python, "Javascript": js, "cURL": cURL})
