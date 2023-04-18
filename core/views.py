@@ -303,7 +303,7 @@ headers = {{
   'Content-Type': 'application/json'
 }}
 
-response = requests.request("POST", url, headers=headers, data=payload)
+response = requests.request("POST", url, headers=headers, data=json.dumps(payload))
 
 print(response.text)
 
@@ -332,4 +332,4 @@ fetch("http://localhost:8000/api/models/{model.id}/predict/", requestOptions)
 --header 'Content-Type: application/json' 
 --data '{first}' 
     """
-    return Response({"py": python, "js": js, "curl": cURL})
+    return Response({"Python": python, "Javascript": js, "cURL": cURL})
