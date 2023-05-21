@@ -12,7 +12,7 @@ from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegress
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import cross_val_score
-from sklearn.svm import SVC, SVR, LinearSVC
+from sklearn.svm import SVR, LinearSVC
 from sklearn.model_selection import GridSearchCV
 from sklearn.base import BaseEstimator
 from sklearn.preprocessing import StandardScaler
@@ -45,7 +45,7 @@ regression_models = {
 
 classification_models = {
     "LOGREG": LogisticRegression,
-    "SVC": LinearSVC,  # Support Vector classifier
+    # "SVC": LinearSVC,  # Support Vector classifier
     "DTC": DecisionTreeClassifier,
     "RFC": RandomForestClassifier,
     "GBC": GradientBoostingClassifier,
@@ -90,7 +90,6 @@ class MLModelService:
 
         ONEHOT_THRESHHOLD = 4
 
-        print("aaaa")
         target_encoding_cols = [
             col for col in categorical_cols if x[col].nunique() > ONEHOT_THRESHHOLD
         ]
@@ -120,22 +119,25 @@ class MLModelService:
 
         results: dict[str, tuple[float, BaseEstimator]] = {}
         for model_name, model in models_dict.items():
-            print(model_name)
-            if model_name == "SVC":
-                model = model()
-            elif model_name == "SVR":
-                model = model(kernel="linear")
-            else:
-                model = model()
+            try:
+                print(model_name)
+                if model_name == "SVC":
+                    model = model()
+                elif model_name == "SVR":
+                    model = model(kernel="linear")
+                else:
+                    model = model()
 
-            # TODO: Gridsearch adding polynomial terms
-            steps = [("preprocessor", preprocessor), ("model", model)]
+                # TODO: Gridsearch adding polynomial terms
+                steps = [("preprocessor", preprocessor), ("model", model)]
 
-            estimator = Pipeline(steps)
-            scores = cross_val_score(estimator, x, y)
-            print(model_name, scores, scores.mean(), "done")
-            score = scores.mean()
-            results[model_name] = (score, estimator)
+                estimator = Pipeline(steps)
+                scores = cross_val_score(estimator, x, y)
+                print(model_name, scores, scores.mean(), "done")
+                score = scores.mean()
+                results[model_name] = (score, estimator)
+            except:
+                pass
 
         best_model_name = max(results, key=lambda x: results.get(x)[0])
         best_estimator_score, best_estimator = results.get(best_model_name)
@@ -163,6 +165,12 @@ class MLModelService:
 
     @staticmethod
     def get_feature_importance(model_name, model):
+        if hasattr(model,"coef_"):
+            if len(model.coef_) == 1:
+                return model.coef_[0]
+            return model.coef_
+        if model_name == 'LSO':
+            return model.coef_
         if model_name in ["DTR", "DTC", "RFC", "GBC", "GBR"]:
             return model.feature_importances_
         else:
@@ -174,14 +182,6 @@ class MLModelService:
             return sklearn_model.predict_proba(x)
         else:
             return sklearn_model.predict(x)
-
-
-import random
-
-
-def calc_percentage(mx):
-    return min(mx, mx - (random.randrange(0, 13) / 100))
-
 
 def normalize_accuracy(x):
     return x

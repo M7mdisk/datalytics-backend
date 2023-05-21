@@ -18,7 +18,7 @@ import json
 from pandas.io.json import dumps
 import pandas as pd
 
-from .services.ML import MLModelService, calc_percentage, normalize_accuracy, BestModel
+from .services.ML import MLModelService, normalize_accuracy, BestModel
 
 
 # TODO: Categorical data made of numbers (0,1)
@@ -126,7 +126,7 @@ class MLModelViewSet(viewsets.ModelViewSet):
         all_predictions = mlservice.get_batch_predictions(df[feature_names], estimator)
 
         df_categorical_features = df.select_dtypes(include="object")
-        breakpoint()
+        # breakpoint()
         model_type = MLModelService.get_field_type(df, target)
         if model_type == MLModel.CLASSIFICATION:
             segs = []
@@ -166,13 +166,15 @@ class MLModelViewSet(viewsets.ModelViewSet):
             # s1= df.tail(5).describe(include='all')
             # segs = [df[feature_names].iloc[x].to_dict() for x in idces]
             segments = {
-                a: {"confidence": calc_percentage(c), "values": b}
+                a: {"confidence": c, "values": b}
                 for a, b, c in zip(estimator.classes_, segs, maxes)
             }
         else:
             df["___prediction__val"] = all_predictions.tolist()
+            df = df.sort_values(by="___prediction__val")
             most_important_rows = df.tail(5)
             least_important_rows = df.head(5)
+            # breakpoint()
             s1 = most_important_rows.describe(include="all")
             most_row = s1.loc["top"].combine_first(s1.loc["mean"])
             most_row_min = s1.loc["top"].combine_first(s1.loc["min"])
@@ -221,7 +223,7 @@ class MLModelViewSet(viewsets.ModelViewSet):
                 "most": pd.Series(res_most)[feature_names].to_dict(),
                 "least": pd.Series(res_least)[feature_names].to_dict(),
             }
-        breakpoint()
+        # breakpoint()
 
         s = serializer.save(
             owner=self.request.user,
@@ -324,7 +326,7 @@ var requestOptions = {{
   redirect: 'follow'
 }};
 
-fetch("http://localhost:8000/api/models/{model.id}/predict/", requestOptions)
+fetch("http://127.0.0.1:8000/api/models/{model.id}/predict/", requestOptions)
   .then(response => response.text())
   .then(result => console.log(result))
   .catch(error => console.log('error', error));
@@ -334,4 +336,5 @@ fetch("http://localhost:8000/api/models/{model.id}/predict/", requestOptions)
 -H 'Content-Type: application/json' \\
 --data '{first_escaped}' 
     """
+    js.replace("localhost","127.0.0.1")
     return Response({"Python": python, "Javascript": js, "cURL": cURL})
